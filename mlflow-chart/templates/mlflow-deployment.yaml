@@ -78,7 +78,8 @@ metadata:
   labels:
     app: mlflow
   annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
 spec:
   rules:
   - host: {{ .Values.ingress.hosts | join "," }}
