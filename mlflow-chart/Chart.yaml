@@ -1,0 +1,49 @@
+
+apiVersion: v2
+name: mlflow
+version: 0.1.0
+appVersion: 1.0.0
+dependencies:
+  - name: postgresql
+    repository: https://charts.bitnami.com/bitnami
+    version: 11.1.3
+  - name: bitnami/nginx-ingress-controller
+    repository: https://charts.bitnami.com/bitnami
+  - version: 9.3.25
+
+
+values:
+  image:
+    repository: larribas/mlflow
+    tag: latest
+  service:
+    type: ClusterIP
+    port: 80
+  ingress:
+    enabled: true
+    hosts:
+    - mlflow.example.com
+  postgresql:
+    enabled: true
+    persistence:
+      enabled: true
+      size: 8Gi
+    postgresqlDatabase: mlflow
+    postgresqlUsername: mlflow
+    postgresqlPassword: mlflowpassword
+  artifacts:
+    destination: s3
+    s3:
+      bucket: mlflow-artifacts
+
+templates:
+- path: mlflow-deployment.yaml
+  kind: Deployment
+- path: mlflow-service.yaml
+  kind: Service
+- path: mlflow-ingress.yaml
+  kind: Ingress
+- path: postgresql-deployment.yaml
+  kind: Deployment
+- path: postgresql-service.yaml
+  kind: Service

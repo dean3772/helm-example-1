@@ -1,0 +1,25 @@
+postgresql:
+  postgresqlPassword: mlflowpassword
+  postgresqlUsername: mlflow
+  postgresqlDatabase: mlflow
+  persistence:
+    size: 8Gi
+    enabled: true
+  enabled: true
+ingress:
+  enabled: true
+  hosts:
+  - mlflowexample.com
+service:
+  type: ClusterIP
+  port: 80
+image:
+  repository: larribas/mlflow
+  tag: latest
+artifacts:
+  destination: s3
+  s3:
+    bucket: mlflow-artifacts
+backend-store-uri: {postgres-connection-string}
+serve-artifacts: true
+artifacts-destination: {s3 or some local path}

@@ -1,0 +1,157 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mlflow
+  labels:
+    app: mlflow
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mlflow
+  template:
+    metadata:
+      labels:
+        app: mlflow
+    spec:
+      containers:
+      - name: mlflow
+        image: "        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        command: ["mlflow", "server", "--host=0.0.0.0", "--port=80", "--backend-store-uri={{ .Values.backend-store-uri }}", "--serve-artifacts", "--artifacts-destination={{ .Values.artifacts.destination }}"]
+        ports:
+        - containerPort: 80
+        resources:
+          limits:
+            cpu: "1"
+            memory: "1Gi"
+          requests:
+            cpu: "0.5"
+            memory: "500Mi"
+      {{- if .Values.postgresql.enabled }}
+      - name: postgresql
+        image: "postgres:{{ .Values.postgresql.version }}"
+        env:
+        - name: POSTGRES_USER
+          value: "{{ .Values.postgresql.postgresqlUsername }}"
+        - name: POSTGRES_PASSWORD
+          value: "{{ .Values.postgresql.postgresqlPassword }}"
+        - name: POSTGRES_DB
+          value: "{{ .Values.postgresql.postgresqlDatabase }}"
+        {{- if .Values.postgresql.persistence.enabled }}
+        volumeMounts:
+        - name: postgresql-data
+          mountPath: /var/lib/postgresql/data
+        {{- end }}
+      {{- end }}
+      {{- if .Values.postgresql.persistence.enabled }}
+      volumes:
+      - name: postgresql-data
+        persistentVolumeClaim:
+          claimName: mlflow-postgresql-pv-claim
+      {{- end }}
+---
+
+# Create the mlflow-service.yaml file
+cat <<EOF > templates/mlflow-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: mlflow
+  labels:
+    app: mlflow
+spec:
+  selector:
+    app: mlflow
+  ports:
+  - name: http
+    port: 80
+    targetPort: 80
+  type: {{ .Values.service.type }}
+---
+
+# Create the mlflow-ingress.yaml file
+cat <<EOF > templates/mlflow-ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: mlflow-ingress
+  labels:
+    app: mlflow
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  rules:
+  - host: {{ .Values.ingress.hosts | join "," }}
+    http:
+      paths:
+      - path: /mlflow
+        pathType: Prefix
+        path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: mlflow
+            port:
+              name: http
+---
+
+# Create the postgresql-deployment.yaml file
+cat <<EOF > templates/postgresql-deployment
+cat <<EOF > templates/postgresql-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgresql
+  labels:
+    app: postgresql
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgresql
+  template:
+    metadata:
+      labels:
+        app: postgresql
+    spec:
+      containers:
+      - name: postgresql
+        image: "postgres:{{ .Values.postgresql.version }}"
+        env:
+        - name: POSTGRES_USER
+          value: "{{ .Values.postgresql.postgresqlUsername }}"
+        - name: POSTGRES_PASSWORD
+          value: "{{ .Values.postgresql.postgresqlPassword }}"
+        - name: POSTGRES_DB
+          value: "{{ .Values.postgresql.postgresqlDatabase }}"
+        ports:
+        - containerPort: 5432
+        {{- if .Values.postgresql.persistence.enabled }}
+        volumeMounts:
+        - name: postgresql-data
+          mountPath: /var/lib/postgresql/data
+        {{- end }}
+      {{- if .Values.postgresql.persistence.enabled }}
+      volumes:
+      - name: postgresql-data
+        persistentVolumeClaim:
+          claimName: mlflow-postgresql-pv-claim
+      {{- end }}
+---
+
+# Create the postgresql-service.yaml file
+cat <<EOF > templates/postgresql-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgresql
+  labels:
+    app: postgresql
+spec:
+  selector:
+    app: postgresql
+  ports:
+  - name: postgresql
+    port: 5432
+    targetPort: 5432
+  type: ClusterIP
